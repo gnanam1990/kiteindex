@@ -3,46 +3,53 @@ import type { Transport } from "viem";
 // Public Kite RPC endpoints (rpc.gokite.ai and the regional variants) are
 // load-balanced across multiple backends, only some of which support
 // `eth_getLogs`. Misses surface as JSON-RPC -32601 / MethodNotFoundRpcError,
-// which viem treats as non-retryable. This wrapper retries that specific
-// failure mode in-process so a single unlucky backend doesn't kill the
-// indexer mid-backfill.
+// which Ponder treats as a non-retryable user error and crashes the indexer.
 //
-// Verified Day 1 (2026-05-03): per-endpoint success rates were Virginia 6/10,
-// Ireland 6/10, Tokyo 4/10, Global 2/10. Combined with viem's `fallback`,
-// per-endpoint retries should mask the load-balancer flakiness until Kite
-// ships indexer-grade RPC.
+// This wrapper makes -32601 effectively transient by retrying indefinitely
+// inside the transport before viem can mark it terminal. Other errors pass
+// through unchanged. Combined with viem's `fallback` over all four regional
+// endpoints, this masks the load-balancer flakiness until Kite ships
+// indexer-grade RPC.
+//
+// Verified Day 1 (2026-05-03): per-endpoint eth_getLogs success rates were
+// Virginia 6/10, Ireland 6/10, Tokyo 4/10, Global 2/10. A bounded retry
+// chain (5 per endpoint × 4 endpoints) was eventually exhausted by a window
+// where all backends failed simultaneously, so we removed the bound.
 export function withMethodNotFoundRetry(
   transport: Transport,
-  options: { attempts?: number; delayMs?: number } = {},
+  options: { maxAttempts?: number; initialDelayMs?: number; maxDelayMs?: number } = {},
 ): Transport {
-  const { attempts = 5, delayMs = 100 } = options;
+  const { maxAttempts = 50, initialDelayMs = 50, maxDelayMs = 500 } = options;
 
   return ((config) => {
     const inner = transport(config);
     return {
       ...inner,
       async request(args: { method: string; params?: unknown }) {
-        let lastError: unknown;
-        for (let attempt = 0; attempt < attempts; attempt++) {
+        let attempt = 0;
+        while (true) {
           try {
             return await inner.request(args);
           } catch (err) {
-            if (!isMethodNotFound(err) || attempt === attempts - 1) {
-              throw err;
-            }
-            lastError = err;
-            const wait = delayMs * 2 ** attempt;
+            if (!isMethodNotFound(err)) throw err;
+            if (maxAttempts > 0 && attempt >= maxAttempts - 1) throw err;
+            const wait = Math.min(initialDelayMs * 2 ** attempt, maxDelayMs);
             await new Promise((r) => setTimeout(r, wait));
+            attempt += 1;
           }
         }
-        throw lastError;
       },
     };
   }) as Transport;
 }
 
 function isMethodNotFound(err: unknown): boolean {
-  const e = err as { code?: number; name?: string; message?: string; cause?: { code?: number } };
+  const e = err as {
+    code?: number;
+    name?: string;
+    message?: string;
+    cause?: { code?: number };
+  };
   if (e?.code === -32601) return true;
   if (e?.cause?.code === -32601) return true;
   if (e?.name === "MethodNotFoundRpcError") return true;
