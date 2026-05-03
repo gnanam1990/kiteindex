@@ -46,6 +46,46 @@ All paid tiers go through Kite Agent Passport's pay-per-query model. This is met
 - Mainnet launched: April 30, 2026
 - Bridge UI: `https://bridge.gokite.ai/` (Kite × Lucid partnership)
 
+### Public RPC reliability (verified Day 1, 2026-05-03)
+
+All four public Kite endpoints — Global, Virginia, Tokyo, Ireland — are
+load-balanced across multiple backends, **only some of which support
+`eth_getLogs`**. Misses surface as JSON-RPC `-32601 "the method eth_getLogs
+does not exist/is not available"`. `eth_chainId` and `eth_blockNumber` are
+stable on every backend.
+
+Per-endpoint `eth_getLogs` success rate, 10 requests each:
+
+| Endpoint | URL | Success |
+|---|---|---|
+| Virginia | `https://rpc-virginia.gokite.ai` | 6/10 |
+| Ireland  | `https://rpc-ireland.gokite.ai`  | 6/10 |
+| Tokyo    | `https://rpc-tokyo.gokite.ai`    | 4/10 |
+| Global   | `https://rpc.gokite.ai/`         | 2/10 |
+
+Root cause is Kite-side infrastructure — the chain is four days old and the
+public RPC is not yet indexer-grade. This is not a range-size issue; the
+limits are per-backend availability.
+
+**Mitigation in `indexer/ponder.config.ts` (working as of Day 1):**
+
+1. Wrap each `http()` transport with `withMethodNotFoundRetry`
+   (`indexer/src/lib/retryTransport.ts`) — catches `-32601` /
+   `MethodNotFoundRpcError`, retries 5× with exponential 100 ms backoff. The
+   wrapper does not retry any other error, so genuine RPC errors still
+   propagate.
+2. Combine all four endpoints under viem's `fallback`, ordered by measured
+   success rate (Virginia → Ireland → Tokyo → Global).
+3. Keep `ethGetLogsBlockRange: 50` and `maxRequestsPerSecond: 10` to limit
+   the blast radius of any single bad backend pick.
+
+Verified: 2-minute `ponder dev` run completed backfill in 4.1 s, indexed 44
+USDC.e Transfer events, zero `-32601` reached Ponder's logs, no crashes.
+
+**Revisit when:** Kite publishes an indexer-grade RPC (sticky-routing or all
+backends capable), or we stand up a self-hosted Kite node. At that point
+`fallback` and the wrapper can be dropped in favor of a single endpoint.
+
 ### Contracts indexed in v0.1
 
 | Contract | Address | Why this one |
