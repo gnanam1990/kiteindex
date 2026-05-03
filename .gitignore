@@ -48,3 +48,7 @@ coverage/
 .cache/
 .turbo/
 .claude/
+
+.kite-passport/
+indexer/ponder-env.d.ts
+ponder-env.d.ts
