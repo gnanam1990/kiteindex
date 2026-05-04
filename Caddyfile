@@ -1,0 +1,7 @@
+kiteindex.xyz {
+	reverse_proxy indexer:42069
+}
+
+www.kiteindex.xyz {
+	redir https://kiteindex.xyz{uri}
+}

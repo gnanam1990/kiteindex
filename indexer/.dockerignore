@@ -1,0 +1,10 @@
+node_modules
+.ponder
+generated
+ponder-env.d.ts
+*.log
+.env
+.env.*
+!.env.example
+.git
+.DS_Store

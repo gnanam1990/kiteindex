@@ -1,0 +1,73 @@
+# kiteindex production stack — single VPS, three services, two volumes.
+#
+# Bring up:    docker compose --env-file .env.production up -d
+# Rebuild:     docker compose --env-file .env.production up -d --build indexer
+# Logs:        docker compose logs -f indexer
+# DB shell:    docker compose exec postgres psql -U ponder ponder
+#
+# Required env (see .env.example):
+#   POSTGRES_PASSWORD       — strong random secret
+#   KPASS_CONFIG_DIR        — host path with the kpass agent identity
+# Optional env: PONDER_*_START_BLOCK overrides, PONDER_LOG_LEVEL.
+
+name: kiteindex
+
+services:
+  postgres:
+    image: postgres:16-bookworm
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ponder
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
+      POSTGRES_DB: ponder
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ponder -d ponder"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+      start_period: 10s
+
+  indexer:
+    build:
+      context: ./indexer
+    image: kiteindex-indexer:latest
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://ponder:${POSTGRES_PASSWORD}@postgres:5432/ponder
+      NODE_ENV: production
+      PONDER_USDCE_START_BLOCK: ${PONDER_USDCE_START_BLOCK:-76600}
+      PONDER_LUCID_START_BLOCK: ${PONDER_LUCID_START_BLOCK:-17904}
+      PONDER_STAKING_START_BLOCK: ${PONDER_STAKING_START_BLOCK:-17904}
+      PONDER_LOG_LEVEL: ${PONDER_LOG_LEVEL:-info}
+    volumes:
+      # kpass binary mounted from the host. Installed by deploy/setup.sh.
+      - /usr/local/bin/kpass:/usr/local/bin/kpass:ro
+      # kpass agent identity / session keys. Required for the gateway to
+      # authenticate real Kite Passport sessions. Defaults to /etc/kpass on
+      # the host; override with KPASS_CONFIG_DIR in .env.production.
+      - ${KPASS_CONFIG_DIR:-/etc/kpass}:/home/ponder/.kpass:ro
+    expose:
+      - "42069"
+
+  caddy:
+    image: caddy:2
+    restart: unless-stopped
+    depends_on:
+      - indexer
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+
+volumes:
+  postgres_data:
+  caddy_data:
+  caddy_config:
