@@ -33,52 +33,46 @@
 - [ ] Rate limiting (in-memory for v0.1)
 - [ ] Three tiers wired up: /graphql/public, /graphql/free, /graphql/paid
 
-## Day 4 — Production deploy
+## Day 4 — Deploy artifacts (DONE, awaits Day 8 to actually deploy)
 
-- [ ] Provision Hetzner CPX21 VPS (Mumbai/Frankfurt — closest low latency for IN)
-- [ ] Docker Compose: Ponder + Postgres + Hono + Caddy
-- [ ] Caddy auto-HTTPS for kiteindex.xyz
-- [ ] Point DNS at VPS (A record at Porkbun)
-- [ ] Smoke-test public GraphQL endpoint over HTTPS
+- [x] Dockerfile, docker-compose.yml, Caddyfile committed
+- [x] deploy/setup.sh + deploy/README.md ready
+- Deploy itself deferred to Day 8 — no point burning VPS hours on something
+  that's still iterating
 
-## Day 5 — Monitoring
+## Day 5 — Monitoring & /healthz internals
 
-- [ ] /healthz endpoint (indexer lag, DB health, last error)
-- [ ] BetterStack uptime monitor (free tier)
-- [ ] Telegram alert on /healthz failure for >2 minutes
-- [ ] Postgres daily backup to local + off-site (Hetzner Storage Box, ~€3/mo)
+- [ ] /healthz endpoint exposing: indexer head block vs chain head, lag in
+      seconds, DB connection healthy, last error
+- [ ] Loki/Promtail or simple file-based log aggregation (decide later)
+- [ ] Telegram bot for alert notifications
 
-## Day 6 — Polish
+## Day 6 — README polish
 
-- [ ] README with screenshots, sample queries
 - [ ] Mermaid architecture diagram in README
-- [ ] Deploy GraphiQL playground at root
-- [ ] Three killer queries documented (live transfers, daily volume, top stakers)
+- [ ] Three killer GraphQL queries with sample responses
+- [ ] Architecture decisions called out
 
-## Day 7 — Public launch prep
+## Day 7 — Demo capture
 
-- [ ] Test the three tiers end-to-end with a real kpass session
-- [ ] Record demo gif (peek)
-- [ ] Final security audit (no creds in git, 2FA on all accounts, SSH key-only on VPS, firewall configured)
+- [ ] Install peek (apt install peek)
+- [ ] Record 25-second demo: /graphql/public → /graphql/free auth gate →
+      /graphql/paid with cost headers
+- [ ] Trim and add to README
 
-## Day 8 — Public launch
+## Day 8 — Production deploy
 
-- [ ] Twitter long-form post (linking PolyAgent + KiteIndex)
+- [ ] Provision Hetzner CPX21 (Frankfurt or Ashburn)
+- [ ] Upload SSH key (already done locally, just upload to Hetzner)
+- [ ] Run setup.sh
+- [ ] Copy ~/.kpass to VPS
+- [ ] docker compose up -d --build
+- [ ] Point DNS at VPS, wait for HTTPS
+- [ ] Smoke test all three tiers over public HTTPS
+- [ ] Monitor for first 4 hours
+
+## Day 9 — Public launch
+
+- [ ] Twitter long-form post
 - [ ] Kite Builders' Project forum post
-- [ ] Add to Kite ecosystem awesome-list (if exists)
-- [ ] Submit to GitHub topics: kite-ai, kite-passport, indexer, graphql, ponder
-
-## Post-launch (ongoing)
-
-- v0.2: Algebra DEX swaps, LayerZero bridge events, more tokens
-- v0.3: Community-requested contracts (issue-driven)
-- Webhook subscriptions (push instead of poll)
-- Subgraph-compatibility layer (drop-in replacement for The Graph users)
-- Migrate to Cloudflare Workers + neon Postgres if scale demands it
-
-## Hard rules
-
-- No production deploys at >11pm. Tired-deploy bugs cost more than a day's delay.
-- No credentials in git. Ever. Use `.env`, document required vars in `.env.example`.
-- Every production change goes through a PR, even if you're the only reviewer. Forces a 60-second sanity check.
-- Renew domain auto-renewal on. Renew VPS via account credit, not card-on-file. Backups quarterly-tested by restoring to a scratch DB.
+- [ ] GitHub topics + pin repo
