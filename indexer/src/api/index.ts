@@ -3,6 +3,7 @@ import schema from "ponder:schema";
 import type { Context, Next } from "hono";
 import { Hono } from "hono";
 import { graphql } from "ponder";
+import { healthzHandler } from "./healthz";
 import { fetchSession, type KpassSession } from "./kpass";
 import { consume } from "./rateLimit";
 import { COST_USD, refund, tryCharge } from "./spend";
@@ -15,6 +16,11 @@ type Variables = {
 const app = new Hono<{ Variables: Variables }>();
 
 const graphqlMiddleware = graphql({ db, schema });
+
+// ---- /healthz — public readiness probe, no auth, no rate limit -----------
+// Registered first so BetterStack's 30s polling doesn't ever hit a tier's
+// rate limit, and so a future bare-/ catch-all can never shadow it.
+app.get("/healthz", healthzHandler);
 
 function clientIp(c: Context): string {
   const xff = c.req.header("x-forwarded-for");
