@@ -152,6 +152,21 @@ async function readChainHead(): Promise<{
   return { number: Number(block.number), timestamp: Number(block.timestamp) };
 }
 
+// Real timestamp of the indexer's head block, fetched by number from RPC.
+// Why not use the checkpoint's encoded blockTimestamp? On chains with sparse
+// activity Ponder's `latestCheckpoint` advances per processed event-bearing
+// block, so its embedded timestamp can lag the actual block scan position by
+// minutes-to-hours during quiet windows. Fetching the real block keeps
+// lag_seconds and last_event_indexed_at honest.
+async function readIndexerHeadBlockTimestamp(
+  blockNumber: number,
+): Promise<number> {
+  const block = await publicClients.kite.getBlock({
+    blockNumber: BigInt(blockNumber),
+  });
+  return Number(block.timestamp);
+}
+
 async function compute(): Promise<{ body: HealthzBody; status: number }> {
   let dbConnected = true;
   let rowCounts: RowCounts = {
@@ -172,26 +187,43 @@ async function compute(): Promise<{ body: HealthzBody; status: number }> {
   }
 
   let chainHead: Awaited<ReturnType<typeof readChainHead>> | null = null;
-  try {
-    chainHead = await readChainHead();
-  } catch (err) {
-    recordError(err);
+  let indexerBlockTimestamp: number | null = null;
+  if (indexerHead) {
+    const [chainResult, indexerResult] = await Promise.allSettled([
+      readChainHead(),
+      readIndexerHeadBlockTimestamp(indexerHead.head_block),
+    ]);
+    if (chainResult.status === "fulfilled") {
+      chainHead = chainResult.value;
+    } else {
+      recordError(chainResult.reason);
+    }
+    if (indexerResult.status === "fulfilled") {
+      indexerBlockTimestamp = indexerResult.value;
+    } else {
+      recordError(indexerResult.reason);
+    }
+  } else {
+    try {
+      chainHead = await readChainHead();
+    } catch (err) {
+      recordError(err);
+    }
   }
 
   const indexer =
-    indexerHead && chainHead
+    indexerHead && chainHead && indexerBlockTimestamp !== null
       ? {
           head_block: indexerHead.head_block,
           chain_head_block: chainHead.number,
           lag_blocks: Math.max(0, chainHead.number - indexerHead.head_block),
           lag_seconds: Math.max(
             0,
-            chainHead.timestamp -
-              Math.floor(
-                new Date(indexerHead.last_event_indexed_at).getTime() / 1000,
-              ),
+            chainHead.timestamp - indexerBlockTimestamp,
           ),
-          last_event_indexed_at: indexerHead.last_event_indexed_at,
+          last_event_indexed_at: new Date(
+            indexerBlockTimestamp * 1000,
+          ).toISOString(),
         }
       : null;
 
