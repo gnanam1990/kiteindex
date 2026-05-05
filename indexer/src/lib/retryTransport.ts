@@ -13,8 +13,11 @@ import type { Transport } from "viem";
 //
 // Verified Day 1 (2026-05-03): per-endpoint eth_getLogs success rates were
 // Virginia 6/10, Ireland 6/10, Tokyo 4/10, Global 2/10. A bounded retry
-// chain (5 per endpoint × 4 endpoints) was eventually exhausted by a window
-// where all backends failed simultaneously, so we removed the bound.
+// chain (5 per endpoint × 4 endpoints) was exhausted during Day 2 backfill
+// load. Bumped to 50 attempts × 4 endpoints. At the empirical 60% success
+// rate, this gives ~99.99% per-request success. Watch for retry storms in
+// production — sustained periods of >30 retries per logical query mean
+// Kite's load-balancer health has degraded.
 export function withMethodNotFoundRetry(
   transport: Transport,
   options: { maxAttempts?: number; initialDelayMs?: number; maxDelayMs?: number } = {},

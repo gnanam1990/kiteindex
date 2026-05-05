@@ -27,7 +27,7 @@ const STAKING_START_BLOCK = process.env.PONDER_STAKING_START_BLOCK
 // (Day 1, 2026-05-03): Virginia 6/10, Ireland 6/10, Tokyo 4/10, Global 2/10.
 // Each endpoint is load-balanced across backends — some backends don't
 // support eth_getLogs and return -32601. We wrap each endpoint with an
-// in-process retry on -32601 (5 attempts, exponential 100ms backoff), and
+// in-process retry on -32601 (50 attempts, exponential 100ms backoff), and
 // then fall back across endpoints in success-rate order.
 const KITE_ENDPOINTS = [
   "https://rpc-virginia.gokite.ai",
