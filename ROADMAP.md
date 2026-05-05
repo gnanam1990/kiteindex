@@ -1,5 +1,7 @@
 # KiteIndex Roadmap
 
+> Status: Day 5 complete, deploy deferred to Day 8.
+
 8-day build plan, then ongoing maintenance. Days are calendar days, not work-days; some are 4 hours, some are 1 hour.
 
 ## Day 0 — Foundations (today)
@@ -9,29 +11,29 @@
 - [x] Create GitHub repo
 - [x] Write CONTEXT.md
 - [x] Write this ROADMAP.md
-- [ ] Push to GitHub, public
+- [x] Push to GitHub, public
 
 ## Day 1 — Skeleton
 
-- [ ] `npm create ponder@latest` — bootstrap project
-- [ ] Configure Kite Mainnet RPC in ponder.config.ts (chain ID 2366)
-- [ ] Define USDC.e Transfer event handler
-- [ ] Run locally — watch it index a few blocks
-- [ ] Commit first working indexer
+- [x] `npm create ponder@latest` — bootstrap project
+- [x] Configure Kite Mainnet RPC in ponder.config.ts (chain ID 2366)
+- [x] Define USDC.e Transfer event handler
+- [x] Run locally — watch it index a few blocks
+- [x] Commit first working indexer
 
 ## Day 2 — Add the other two contracts
 
-- [ ] Lucid USDC Controller events (bridge in/out)
-- [ ] KiteStakingManager events (Stake, Unstake, RewardClaimed)
-- [ ] Schema entities for derived data (daily volume aggregates, top stakers)
-- [ ] Local GraphQL query tests
+- [x] Lucid USDC Controller events (bridge in/out)
+- [x] KiteStakingManager events (Stake, Unstake, RewardClaimed)
+- [x] Schema entities for derived data (daily volume aggregates, top stakers)
+- [x] Local GraphQL query tests
 
 ## Day 3 — Hono gateway
 
-- [ ] Hono server in front of Ponder's GraphQL
-- [ ] kpass auth wrapper (subprocess pattern from PolyAgent)
-- [ ] Rate limiting (in-memory for v0.1)
-- [ ] Three tiers wired up: /graphql/public, /graphql/free, /graphql/paid
+- [x] Hono server in front of Ponder's GraphQL
+- [x] kpass auth wrapper (subprocess pattern from PolyAgent)
+- [x] Rate limiting (in-memory for v0.1)
+- [x] Three tiers wired up: /graphql/public, /graphql/free, /graphql/paid
 
 ## Day 4 — Deploy artifacts (DONE, awaits Day 8 to actually deploy)
 
@@ -42,7 +44,7 @@
 
 ## Day 5 — Monitoring & /healthz internals
 
-- [ ] /healthz endpoint exposing: indexer head block vs chain head, lag in
+- [x] /healthz endpoint exposing: indexer head block vs chain head, lag in
       seconds, DB connection healthy, last error
 - [ ] Loki/Promtail or simple file-based log aggregation (decide later)
 - [ ] Telegram bot for alert notifications
