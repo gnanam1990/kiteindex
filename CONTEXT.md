@@ -1,3 +1,63 @@
+# KiteIndex — Hard-Earned Context
+
+This file captures non-obvious facts and design decisions. Do NOT change these without verifying the original investigation.
+
+## What this is
+
+KiteIndex is a hosted GraphQL indexer for Kite Mainnet (Avalanche L1, launched April 30, 2026). It indexes on-chain events from selected contracts into Postgres and exposes them via GraphQL. Free tier is public; paid tier authenticates via Kite Agent Passport (kpass CLI).
+
+## Architectural decisions (do not undo)
+
+### 1. Stack: TypeScript + Ponder, NOT Python + custom indexer
+Ponder (https://ponder.sh) handles RPC connection management, reorg protection, schema migrations, and auto-generated GraphQL — all the parts that take months to write correctly from scratch. The Hono gateway in front of Ponder is what we write — it does kpass auth, rate limiting, and tier routing.
+
+### 2. Auth via kpass subprocess, NOT REST API
+Kite Passport REST API is not publicly documented. We shell out to `kpass user sessions --session-id $ID --output json` and parse JSON. Authoritative, supported, always in sync with whatever Kite ships. DO NOT replace with a guessed REST client.
+
+### 3. Hosted, not decentralized
+We are the indexer. v0.1 is one VPS running everything. A 4-day-old chain doesn't need a decentralized indexer; it needs ANY indexer.
+
+### 4. Index a focused set of contracts, not all of them
+v0.1 indexes 3 contracts. v0.2 adds 3 more. v0.3+ is community-driven.
+
+### 5. SaaS pricing via kpass, not Stripe
+All paid tiers go through Kite Agent Passport's pay-per-query model. KiteIndex is itself a demo of Kite-native monetization.
+
+## Verified facts
+
+### Kite Mainnet
+- Chain ID: 2366 (`0x93e`)
+- Public RPC endpoints (load-balanced; not all backends support eth_getLogs):
+  - https://rpc-virginia.gokite.ai (Day 1 measured: 6/10 success)
+  - https://rpc-ireland.gokite.ai (6/10)
+  - https://rpc-tokyo.gokite.ai (4/10)
+  - https://rpc.gokite.ai/ (2/10, global)
+- Bridged USDC.e contract: 0x7aB6f3ed87C42eF0aDb67Ed95090f8bF5240149e (6 decimals)
+- Mainnet launched: April 30, 2026
+- Bridge UI: https://bridge.gokite.ai/
+
+## RPC tuning (current)
+- ethGetLogsBlockRange: 5000
+- maxRequestsPerSecond: 25
+- retryTransport: maxAttempts=50, initialDelayMs=50, maxDelayMs=500
+- per-request success rate at 50 attempts: ~99.99% empirically
+
+## Operational commitments
+This service is committed to running 24/7. That means:
+- Monitoring (BetterStack free tier, Telegram alerts on /healthz failure)
+- /healthz endpoint exposing indexer head vs chain head, lag in seconds
+- VPS with 4GB+ RAM (Hetzner CPX21)
+- Postgres backups (daily snapshot)
+- Domain auto-renew enabled
+
+## Out of scope for v0.1 (resist scope creep)
+- Decentralized indexer network
+- Self-hosted Kite node (using public RPCs with retry layer)
+- Historical backfill from genesis (USDC.e starts at Day 1 block, low-volume contracts go further back)
+- Web frontend / playground UI (Ponder ships GraphiQL; that's enough for v0.1)
+- web3.py — overkill, we use viem
+- Postgres → another DB until multi-tenant load is real
+
 ### Contracts indexed in v0.1
 
 | Contract | Address | Why |
