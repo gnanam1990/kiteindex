@@ -4,8 +4,7 @@
 
 KiteIndex provides a fast, reliable GraphQL API for querying on-chain activity on Kite — USDC.e transfers, Lucid bridge events, staking, and more. Free public tier; paid tier authenticated via Kite Agent Passport.
 
-> Status: v0.1 in development. Indexer, gateway, and `/healthz` live locally. Deploy planned for Day 8 of the build. Repo is open from day one.
-> Live URL: https://kiteindex.xyz (coming soon)
+**Status**: v0.1 complete and deploy-ready. Open-source from commit zero. Self-hostable in 30 minutes. Live hosting follows demand — see [deploy/README.md](deploy/README.md) or DM for a managed instance.
 
 ## Why this exists
 
@@ -60,53 +59,43 @@ The four Kite RPC endpoints are tried in measured success-rate order (Virginia �
 
 [![asciicast](https://asciinema.org/a/4fq4tv9Y8uTMcS43.svg)](https://asciinema.org/a/4fq4tv9Y8uTMcS43)
 
-## Sample GraphQL queries
+## Try it now
 
-Run these against the public tier locally — `curl http://localhost:42069/graphql/public` after `npx ponder dev`.
+Local demo, ~60 seconds:
 
-**Latest 5 USDC.e transfers**
-```graphql
-{
-  transferEvents(orderBy: "blockNumber", orderDirection: "desc", limit: 5) {
-    items { from to value blockNumber txHash }
-  }
-}
-```
-
-**Bridge transfers fully delivered, most recent first**
-```graphql
-{
-  bridgeTransfers(
-    where: { status: "executed" }
-    orderBy: "executedBlock"
-    orderDirection: "desc"
-    limit: 20
-  ) {
-    items { transferId direction sender recipient amount executedBlock }
-  }
-}
-```
-
-**Top 10 validators by stake**
-```graphql
-{
-  validatorRegistrations(orderBy: "stakeAmount", orderDirection: "desc", limit: 10) {
-    items { validationId owner stakeAmount delegationFeeBips minStakeDuration }
-  }
-}
-```
-
-## Local dev
-
-```sh
-cd indexer
+```bash
+git clone https://github.com/gnanam1990/kiteindex
+cd kiteindex/indexer
 npm install
-KITEINDEX_FAKE_KPASS=1 npx ponder dev
+KITEINDEX_FAKE_KPASS=1 PONDER_USDCE_START_BLOCK=78000 PONDER_LUCID_START_BLOCK=78000 PONDER_STAKING_START_BLOCK=78000 npx ponder dev
 ```
 
-The `KITEINDEX_FAKE_KPASS=1` flag lets the gateway treat any `X-Kite-Session: dev_*` header as a valid session with a $1 budget — handy for testing `/graphql/free` and `/graphql/paid` without a real Kite Passport. The flag crashes the indexer on startup if `NODE_ENV=production`, so it can never accidentally ship.
+(The `PONDER_*_START_BLOCK` overrides keep the backfill fast for local iteration. Production indexes from genesis for low-volume contracts.)
 
-`/healthz` returns rich JSON; `/health` is Ponder's built-in `200 ""` for Docker liveness.
+Then in another terminal:
+
+```bash
+# Public tier - no auth needed
+curl -s http://localhost:42069/graphql/public -H 'Content-Type: application/json' -d '{"query":"{ transferEvents(limit: 5) { items { from to value blockNumber } } }"}'
+
+# Free tier - kpass session required (dev shim accepts any dev_ prefix)
+curl -s http://localhost:42069/graphql/free -H 'X-Kite-Session: dev_alice' -H 'Content-Type: application/json' -d '{"query":"{ bridgeTransfers(limit: 5) { items { transferId direction status amount } } }"}'
+
+# Paid tier - debits $0.0001 per query from your kpass session
+curl -s -i http://localhost:42069/graphql/paid -H 'X-Kite-Session: dev_bob' -H 'Content-Type: application/json' -d '{"query":"{ validatorRegistrations(limit: 5) { items { owner stakeAmount delegationFeeBips } } }"}' | grep -E '^(HTTP|x-kite-)'
+```
+
+Watch the cost-transparency headers in the paid response:
+
+```
+x-kite-tier: paid
+x-kite-cost-usd: 0.0001
+x-kite-remaining-usd: 0.999900
+```
+
+The three queries above demonstrate the indexer's range: USDC.e transfers (public tier), Lucid cross-chain bridge state (free tier), and Avalanche-L1 validator analytics (paid tier).
+
+For self-hosting on your own VPS (~30 minutes, ~$6/month): see [deploy/README.md](deploy/README.md).
 
 ## Deploy
 

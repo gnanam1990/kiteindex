@@ -57,6 +57,7 @@ This service is committed to running 24/7. That means:
 - Web frontend / playground UI (Ponder ships GraphiQL; that's enough for v0.1)
 - web3.py — overkill, we use viem
 - Postgres → another DB until multi-tenant load is real
+- Production hosting at kiteindex.xyz. v0.1 ships as deploy-ready, not deployed. All deploy artifacts (Dockerfile, docker-compose.yml, Caddyfile, deploy/setup.sh, deploy/README.md) are committed and tested locally. Live hosting follows demand — design partners or sponsors trigger provisioning.
 
 ### Contracts indexed in v0.1
 
