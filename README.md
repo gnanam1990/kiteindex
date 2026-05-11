@@ -54,6 +54,12 @@ flowchart LR
 
 The four Kite RPC endpoints are tried in measured success-rate order (Virginia → Ireland → Tokyo → Global). `eth_getLogs` lands on backends that don't support it ~40% of the time; the retry transport masks `-32601` with up to 50 attempts per endpoint.
 
+## Demo
+
+27-second walkthrough of the three tiers — public (no auth), free (kpass session, no charge), and paid ($0.0001/query with `x-kite-cost-usd` / `x-kite-remaining-usd` headers).
+
+[![asciicast](https://asciinema.org/a/4fq4tv9Y8uTMcS43.svg)](https://asciinema.org/a/4fq4tv9Y8uTMcS43)
+
 ## Sample GraphQL queries
 
 Run these against the public tier locally — `curl http://localhost:42069/graphql/public` after `npx ponder dev`.
